@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Will S</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#080c1a;
+    --grid:#121a3a;
+    --grid-accent:#1a2550;
+    --text:#c8d6e5;
+    --text-dim:#5a6a80;
+    --accent:#00d4aa;
+    --accent2:#0088ff;
+    --accent3:#ff6b35;
+    --wire:#1a3a5a;
+  }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'SF Mono','Fira Code','Cascadia Code',monospace;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow-x:hidden;
+  }
+
+  /* Blueprint grid background */
+  body::before{
+    content:'';
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      linear-gradient(var(--grid-accent) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-accent) 1px, transparent 1px);
+    background-size:
+      80px 80px,
+      80px 80px,
+      16px 16px,
+      16px 16px;
+    z-index:0;
+    opacity:0.6;
+  }
+
+  .container{
+    position:relative;
+    z-index:1;
+    max-width:900px;
+    width:100%;
+    padding:60px 30px;
+  }
+
+  header{
+    margin-bottom:20px;
+  }
+  h1{
+    font-size:2.4rem;
+    font-weight:700;
+    color:#fff;
+    letter-spacing:-0.5px;
+  }
+  h1 .cursor{
+    display:inline-block;
+    width:2px;
+    height:1.8rem;
+    background:var(--accent);
+    margin-left:4px;
+    animation:blink 1s step-end infinite;
+    vertical-align:baseline;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  .bio{
+    margin-top:12px;
+    font-size:0.95rem;
+    line-height:1.7;
+    color:var(--text-dim);
+    max-width:600px;
+  }
+  .bio a{color:var(--accent);text-decoration:none}
+  .bio a:hover{text-decoration:underline}
+
+  /* Canvas section */
+  .placer-section{
+    margin:40px 0;
+    border:1px solid var(--grid-accent);
+    border-radius:2px;
+    background:rgba(8,12,26,0.85);
+    overflow:hidden;
+  }
+  .placer-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 16px;
+    border-bottom:1px solid var(--grid-accent);
+    font-size:0.75rem;
+    color:var(--text-dim);
+  }
+  .placer-header .title{color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+  .placer-stats{display:flex;gap:20px}
+  .placer-stats span{white-space:nowrap}
+  .placer-stats .val{color:var(--text)}
+
+  canvas#placer{
+    display:block;
+    width:100%;
+    cursor:crosshair;
+  }
+
+  .placer-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 16px;
+    border-top:1px solid var(--grid-accent);
+    font-size:0.7rem;
+    color:var(--text-dim);
+  }
+  .temp-bar-wrap{
+    display:flex;align-items:center;gap:8px;
+  }
+  .temp-bar{
+    width:120px;height:4px;
+    background:var(--grid-accent);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .temp-bar-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--accent2),var(--accent3));
+    transition:width 0.3s;
+  }
+  .controls{display:flex;gap:12px;align-items:center}
+  .btn{
+    background:none;border:1px solid var(--grid-accent);
+    color:var(--text-dim);padding:3px 10px;
+    font-family:inherit;font-size:0.7rem;
+    cursor:pointer;border-radius:2px;
+    transition:all 0.2s;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* Links */
+  .links{
+    display:flex;
+    gap:24px;
+    font-size:0.85rem;
+    margin-top:10px;
+  }
+  .links a{
+    color:var(--text-dim);
+    text-decoration:none;
+    transition:color 0.2s;
+  }
+  .links a:hover{color:var(--accent)}
+  .links a::before{
+    content:'> ';
+    color:var(--grid-accent);
+  }
+
+  /* Responsive */
+  @media(max-width:600px){
+    .container{padding:30px 16px}
+    h1{font-size:1.6rem}
+    .placer-stats{flex-wrap:wrap;gap:8px}
+    .placer-footer{flex-direction:column;gap:6px}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Will S<span class="cursor"></span></h1>
+    <p class="bio">
+      EDA engineer building GPU-accelerated tools for chip design.
+      Timing analysis, placement, and optimization on CUDA.
+      Currently at <a href="https://github.com/partcleda">Partcl</a>.
+    </p>
+  </header>
+
+  <div class="placer-section">
+    <div class="placer-header">
+      <span class="title">Simulated Annealing Macro Placer</span>
+      <div class="placer-stats">
+        <span>T: <span class="val" id="stat-temp">1.000</span></span>
+        <span>HPWL: <span class="val" id="stat-cost">---</span></span>
+        <span>iter: <span class="val" id="stat-iter">0</span></span>
+        <span>accept: <span class="val" id="stat-accept">0%</span></span>
+      </div>
+    </div>
+    <canvas id="placer"></canvas>
+    <div class="placer-footer">
+      <div class="temp-bar-wrap">
+        <span>temperature</span>
+        <div class="temp-bar"><div class="temp-bar-fill" id="temp-fill" style="width:100%"></div></div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="btn-restart">restart</button>
+        <button class="btn" id="btn-pause">pause</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="links">
+    <a href="https://github.com/willpartcl">github</a>
+    <a href="https://linkedin.com/in/">linkedin</a>
+    <a href="mailto:will@partcl.com">email</a>
+  </div>
+</div>
+
+<script>
+// --- Simulated Annealing Macro Placer ---
+
+const canvas = document.getElementById('placer');
+const ctx = canvas.getContext('2d');
+
+// Hi-DPI support
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = rect.width;
+  const h = Math.min(w * 0.55, 480);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+
+let { w: W, h: H } = resize();
+window.addEventListener('resize', () => {
+  ({ w: W, h: H } = resize());
+  if (macros) syncPositions();
+});
+
+// Die area with margin
+const MARGIN = 20;
+const dieX = MARGIN, dieY = MARGIN;
+let dieW = () => W - 2 * MARGIN;
+let dieH = () => H - 2 * MARGIN;
+
+// Macro definitions
+const MACRO_DEFS = [
+  { name: 'CPU',    w: 0.18, h: 0.22, color: '#00d4aa' },
+  { name: 'SRAM',   w: 0.22, h: 0.12, color: '#0099dd' },
+  { name: 'SRAM',   w: 0.22, h: 0.12, color: '#0099dd' },
+  { name: 'PLL',    w: 0.08, h: 0.08, color: '#ff6b35' },
+  { name: 'DAC',    w: 0.10, h: 0.07, color: '#e056a0' },
+  { name: 'ADC',    w: 0.10, h: 0.07, color: '#e056a0' },
+  { name: 'GPIO',   w: 0.25, h: 0.06, color: '#7c5cbf' },
+  { name: 'DSP',    w: 0.14, h: 0.16, color: '#44bb77' },
+  { name: 'ROM',    w: 0.12, h: 0.10, color: '#3388cc' },
+  { name: 'DMA',    w: 0.10, h: 0.10, color: '#cc8833' },
+  { name: 'UART',   w: 0.06, h: 0.05, color: '#aa6644' },
+  { name: 'SPI',    w: 0.06, h: 0.05, color: '#aa6644' },
+  { name: 'I2C',    w: 0.05, h: 0.04, color: '#aa6644' },
+  { name: 'CLK',    w: 0.07, h: 0.06, color: '#ddaa22' },
+];
+
+// Nets (pairs of macro indices)
+const NET_DEFS = [
+  [0, 1], [0, 2], [0, 7], [0, 3], [0, 9],
+  [1, 7], [2, 8], [3, 13],
+  [4, 0], [5, 0], [5, 7],
+  [6, 10], [6, 11], [6, 12],
+  [7, 8], [9, 1], [9, 2],
+  [10, 0], [11, 0], [12, 0],
+  [13, 3],
+];
+
+let macros, paused, iteration, temperature, currentCost, acceptCount, totalMoves;
+let convergedAt = 0;
+
+function initMacros() {
+  macros = MACRO_DEFS.map(d => ({
+    name: d.name,
+    rw: d.w, rh: d.h,
+    color: d.color,
+    // Store relative positions [0,1] for resize safety
+    rx: Math.random() * (1 - d.w),
+    ry: Math.random() * (1 - d.h),
+  }));
+  // Compute absolute positions from relative
+  syncPositions();
+  iteration = 0;
+  temperature = 1.0;
+  currentCost = Infinity;
+  acceptCount = 0;
+  totalMoves = 0;
+  convergedAt = 0;
+  paused = false;
+  document.getElementById('btn-pause').textContent = 'pause';
+}
+
+// Convert relative positions to absolute
+function syncPositions() {
+  for (const m of macros) {
+    m.x = MARGIN + m.rx * dieW();
+    m.y = MARGIN + m.ry * dieH();
+  }
+}
+
+// Save absolute positions back to relative
+function saveRelative(m) {
+  m.rx = (m.x - MARGIN) / dieW();
+  m.ry = (m.y - MARGIN) / dieH();
+}
+
+function macroW(m) { return m.rw * dieW(); }
+function macroH(m) { return m.rh * dieH(); }
+function macroCX(m) { return m.x + macroW(m) / 2; }
+function macroCY(m) { return m.y + macroH(m) / 2; }
+
+// Half-Perimeter Wirelength
+function computeHPWL() {
+  let total = 0;
+  for (const [a, b] of NET_DEFS) {
+    const dx = Math.abs(macroCX(macros[a]) - macroCX(macros[b]));
+    const dy = Math.abs(macroCY(macros[a]) - macroCY(macros[b]));
+    total += dx + dy;
+  }
+  return total;
+}
+
+// Overlap penalty
+function computeOverlap() {
+  let penalty = 0;
+  for (let i = 0; i < macros.length; i++) {
+    const a = macros[i];
+    const aw = macroW(a), ah = macroH(a);
+    for (let j = i + 1; j < macros.length; j++) {
+      const b = macros[j];
+      const bw = macroW(b), bh = macroH(b);
+      const ox = Math.max(0, Math.min(a.x + aw, b.x + bw) - Math.max(a.x, b.x));
+      const oy = Math.max(0, Math.min(a.y + ah, b.y + bh) - Math.max(a.y, b.y));
+      penalty += ox * oy;
+    }
+  }
+  return penalty * 4;
+}
+
+function cost() {
+  return computeHPWL() + computeOverlap();
+}
+
+// SA step
+function saStep() {
+  const idx = Math.floor(Math.random() * macros.length);
+  const m = macros[idx];
+  const mw = macroW(m), mh = macroH(m);
+
+  // Save old position
+  const ox = m.x, oy = m.y;
+
+  // Random displacement scaled by temperature
+  const range = temperature * Math.max(dieW(), dieH()) * 0.3;
+  m.x += (Math.random() - 0.5) * 2 * range;
+  m.y += (Math.random() - 0.5) * 2 * range;
+
+  // Clamp to die area
+  m.x = Math.max(MARGIN, Math.min(MARGIN + dieW() - mw, m.x));
+  m.y = Math.max(MARGIN, Math.min(MARGIN + dieH() - mh, m.y));
+
+  const newCost = cost();
+  const delta = newCost - currentCost;
+
+  totalMoves++;
+
+  if (delta < 0 || Math.random() < Math.exp(-delta / (temperature * 200))) {
+    currentCost = newCost;
+    saveRelative(m);
+    acceptCount++;
+  } else {
+    m.x = ox;
+    m.y = oy;
+  }
+
+  iteration++;
+  temperature *= 0.9997;
+  if (temperature < 0.002) {
+    if (convergedAt === 0) convergedAt = performance.now();
+    temperature = 0.002;
+  }
+}
+
+// Drawing
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(26,37,80,0.4)';
+  ctx.lineWidth = 0.5;
+  const step = 16;
+  for (let x = MARGIN; x <= MARGIN + dieW(); x += step) {
+    ctx.beginPath(); ctx.moveTo(x, MARGIN); ctx.lineTo(x, MARGIN + dieH()); ctx.stroke();
+  }
+  for (let y = MARGIN; y <= MARGIN + dieH(); y += step) {
+    ctx.beginPath(); ctx.moveTo(MARGIN, y); ctx.lineTo(MARGIN + dieW(), y); ctx.stroke();
+  }
+}
+
+function drawDie() {
+  // Die border
+  ctx.strokeStyle = '#1a3a6a';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(MARGIN, MARGIN, dieW(), dieH());
+
+  // Corner marks
+  const cm = 8;
+  ctx.strokeStyle = var_accent();
+  ctx.lineWidth = 1.5;
+  // top-left
+  ctx.beginPath(); ctx.moveTo(MARGIN, MARGIN + cm); ctx.lineTo(MARGIN, MARGIN); ctx.lineTo(MARGIN + cm, MARGIN); ctx.stroke();
+  // top-right
+  const r = MARGIN + dieW();
+  ctx.beginPath(); ctx.moveTo(r - cm, MARGIN); ctx.lineTo(r, MARGIN); ctx.lineTo(r, MARGIN + cm); ctx.stroke();
+  // bottom-left
+  const b = MARGIN + dieH();
+  ctx.beginPath(); ctx.moveTo(MARGIN, b - cm); ctx.lineTo(MARGIN, b); ctx.lineTo(MARGIN + cm, b); ctx.stroke();
+  // bottom-right
+  ctx.beginPath(); ctx.moveTo(r - cm, b); ctx.lineTo(r, b); ctx.lineTo(r, b - cm); ctx.stroke();
+}
+
+function var_accent() { return '#00d4aa'; }
+
+function drawNets() {
+  ctx.lineWidth = 0.7;
+  for (const [a, b] of NET_DEFS) {
+    const ma = macros[a], mb = macros[b];
+    const ax = macroCX(ma), ay = macroCY(ma);
+    const bx = macroCX(mb), by = macroCY(mb);
+
+    ctx.strokeStyle = 'rgba(0,136,255,0.2)';
+    ctx.beginPath();
+    // L-shaped route
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+  }
+}
+
+function drawMacros() {
+  for (const m of macros) {
+    const mw = macroW(m), mh = macroH(m);
+
+    // Fill
+    ctx.fillStyle = m.color + '18';
+    ctx.fillRect(m.x, m.y, mw, mh);
+
+    // Border
+    ctx.strokeStyle = m.color + '88';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(m.x, m.y, mw, mh);
+
+    // Pin marks (small dots on edges)
+    ctx.fillStyle = m.color + '66';
+    const ps = 2;
+    ctx.fillRect(m.x + mw / 2 - ps / 2, m.y - 1, ps, ps); // top
+    ctx.fillRect(m.x + mw / 2 - ps / 2, m.y + mh - 1, ps, ps); // bottom
+    ctx.fillRect(m.x - 1, m.y + mh / 2 - ps / 2, ps, ps); // left
+    ctx.fillRect(m.x + mw - 1, m.y + mh / 2 - ps / 2, ps, ps); // right
+
+    // Label
+    const fontSize = Math.max(8, Math.min(11, mw / 5));
+    ctx.font = `${fontSize}px 'SF Mono','Fira Code',monospace`;
+    ctx.fillStyle = m.color + 'cc';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.name, m.x + mw / 2, m.y + mh / 2);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawGrid();
+  drawDie();
+  drawNets();
+  drawMacros();
+}
+
+function updateStats() {
+  document.getElementById('stat-temp').textContent = temperature.toFixed(3);
+  document.getElementById('stat-cost').textContent = currentCost < Infinity ? currentCost.toFixed(0) : '---';
+  document.getElementById('stat-iter').textContent = iteration.toLocaleString();
+  const rate = totalMoves > 0 ? Math.round(acceptCount / totalMoves * 100) : 0;
+  document.getElementById('stat-accept').textContent = rate + '%';
+  document.getElementById('temp-fill').style.width = (temperature * 100) + '%';
+}
+
+// Main loop
+const STEPS_PER_FRAME = 40;
+
+function frame() {
+  if (!paused) {
+    for (let i = 0; i < STEPS_PER_FRAME; i++) saStep();
+    // Auto-restart after holding at convergence for 5 seconds
+    if (convergedAt > 0 && performance.now() - convergedAt > 5000) {
+      initMacros();
+      currentCost = cost();
+    }
+  }
+  draw();
+  updateStats();
+  requestAnimationFrame(frame);
+}
+
+// Controls
+document.getElementById('btn-restart').addEventListener('click', () => {
+  initMacros();
+  currentCost = cost();
+});
+
+document.getElementById('btn-pause').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('btn-pause').textContent = paused ? 'resume' : 'pause';
+});
+
+// Init
+initMacros();
+currentCost = cost();
+frame();
+</script>
+
+</body>
+</html>
